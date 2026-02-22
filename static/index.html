@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tubulão Térmico — MVP 10 Parâmetros</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419; --surface: #1a2332; --border: #2d3a4d;
+      --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+      --success: #3fb950; --error: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 1.5rem; min-height: 100vh; }
+    .container { max-width: 950px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--muted); }
+    input[type="file"] { width: 100%; padding: 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem; }
+    .btn { display: inline-block; margin-top: 0.75rem; padding: 0.6rem 1.2rem; background: var(--accent); color: var(--bg); border: none; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+    .btn:hover { filter: brightness(1.1); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #status { margin-top: 0.75rem; font-size: 0.85rem; min-height: 1.2em; }
+    #status.error { color: var(--error); } #status.ok { color: var(--success); }
+    #resultados { display: none; } #resultados.visible { display: block; }
+    .erro-mae { font-size: 0.9rem; color: var(--success); margin-bottom: 1rem; }
+    
+    /* Estilos da nova tabela estatística */
+    .table-wrapper { overflow-x: auto; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: right; }
+    th, td { padding: 0.6rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; text-align: right; }
+    th:first-child, td:first-child { text-align: left; font-weight: 600; color: var(--accent); }
+    
+    .chart-wrap { position: relative; height: 450px; margin-top: 1rem; }
+
+    /* Configurações e Config */
+    .config-section { margin-top: 1rem; }
+    .config-section summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+    .form-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; align-items: center; }
+    .form-row label { margin-bottom: 0; min-width: 10rem; }
+    .form-row input[type="number"], .form-row input[type="text"] { width: 6rem; padding: 0.4rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+    .form-row input[type="checkbox"] { margin-right: 0.5rem; }
+    .chute-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-top: 0.5rem; }
+    .chute-item label { font-size: 0.75rem; }
+    .chute-item input { width: 100%; }
+    .btn-secondary { background: var(--border); color: var(--text); margin-left: 0.5rem; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.visible { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; max-width: 90vw; max-height: 85vh; overflow: auto; }
+    .modal h3 { margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem; }
+    .modal .bounds-table { font-size: 0.8rem; }
+    .modal .bounds-table th, .modal .bounds-table td { padding: 0.35rem; }
+    .modal .bounds-table input { width: 4.5rem; padding: 0.25rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); }
+    .modal-actions { margin-top: 1rem; display: flex; justify-content: flex-end; gap: 0.5rem; }
+    .mode-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .mode-tabs button { padding: 0.5rem 1rem; border: 1px solid var(--border); background: var(--surface); color: var(--muted); border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .mode-tabs button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .mode-panel { display: none; }
+    .mode-panel.visible { display: block; }
+    .params-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
+    .params-grid .chute-item label { font-size: 0.75rem; }
+    #resultadosAnalise { display: none; }
+    #resultadosAnalise.visible { display: block; }
+    .tabela-estatistica { margin-top: 0.75rem; }
+    .tabela-estatistica summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+    .status-inline { font-size: 0.85rem; min-height: 1.2em; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Tubulão Térmico</h1>
+    <p class="subtitle">Análise (curva) ou Monitoramento (regressão a partir de CSV)</p>
+
+    <div class="mode-tabs">
+      <button type="button" id="tabAnalise" class="active">Análise</button>
+      <button type="button" id="tabMonitoramento">Monitoramento</button>
+    </div>
+
+    <!-- Painel Análise: só parâmetros, gera curva, salvar CSV -->
+    <div id="painelAnalise" class="mode-panel visible">
+      <div class="card">
+        <p class="subtitle" style="margin-bottom: 0.75rem;">Informe os parâmetros do modelo para gerar a curva temperatura × tempo (sem arquivo).</p>
+        <div class="form-row">
+          <label for="analise_T_ini">Temp. inicial (°C)</label>
+          <input type="number" id="analise_T_ini" step="0.1" value="25">
+          <label for="analise_diametro">Diâmetro do tubulão (m)</label>
+          <input type="number" id="analise_diametro" step="0.01" value="0.9">
+          <label for="analise_C_cim">Consumo de cimento C_cim (kg/m³)</label>
+          <input type="number" id="analise_C_cim" step="1" value="300">
+          <label for="t_min">t mín (h)</label>
+          <input type="number" id="t_min" step="0.1" value="0.1">
+          <label for="t_max">t máx (h)</label>
+          <input type="number" id="t_max" step="1" value="100">
+          <label for="n_pontos">n pontos</label>
+          <input type="number" id="n_pontos" min="50" max="2000" value="300">
+        </div>
+        <label style="margin-bottom: 0.25rem;">Parâmetros do modelo (10)</label>
+        <div id="paramsAnaliseContainer" class="params-grid"></div>
+        <button type="button" class="btn" id="btnGerarCurva">Gerar curva</button>
+        <div id="statusAnalise" class="status-inline"></div>
+      </div>
+      <div class="card" id="resultadosAnalise">
+        <h2 style="font-size: 1.1rem; margin-bottom: 0.75rem;">Curva gerada</h2>
+        <div class="chart-wrap"><canvas id="graficoAnalise"></canvas></div>
+        <button type="button" class="btn btn-secondary" id="btnSalvarCSV" style="margin-top: 0.75rem;">Salvar curva em CSV</button>
+      </div>
+    </div>
+
+    <!-- Painel Monitoramento: CSV + regressão -->
+    <div id="painelMonitoramento" class="mode-panel">
+      <div class="card">
+        <label for="csv">Arquivo CSV (tempo em h, temperatura em °C)</label>
+        <input type="file" id="csv" accept=".csv,text/csv">
+
+        <details class="config-section" id="configSection">
+          <summary>Parâmetros fixos e chute inicial</summary>
+          <div class="form-row">
+            <label for="T_ini">Temp. inicial (°C)</label>
+            <input type="number" id="T_ini" step="0.1" value="25">
+            <label for="diametro">Diâmetro do tubulão (m)</label>
+            <input type="number" id="diametro" step="0.01" value="0.9">
+            <label for="C_cim">Consumo de cimento C_cim (kg/m³)</label>
+            <input type="number" id="C_cim" step="1" value="300">
+          </div>
+          <div class="form-row">
+            <input type="checkbox" id="usarChute">
+            <label for="usarChute">Usar chute inicial personalizado</label>
+          </div>
+          <div id="chuteContainer" class="chute-grid" style="display: none;"></div>
+        </details>
+
+        <div style="margin-top: 0.75rem;">
+          <button type="button" class="btn" id="btnCalcular">Calcular</button>
+          <button type="button" class="btn btn-secondary" id="btnConfig">Config (limites e estatística)</button>
+        </div>
+        <div id="status"></div>
+      </div>
+
+      <div class="card" id="resultados">
+        <h2 style="font-size: 1.1rem; margin-bottom: 0.75rem;">Resultado do monitoramento</h2>
+        <div class="erro-mae" id="erroMae"></div>
+        <div id="statsAviso" class="status-inline" style="color: var(--muted); display: none;"></div>
+
+        <details class="tabela-estatistica" id="detailsTabelaStats">
+          <summary>Exibir tabela estatística</summary>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parâmetro</th>
+                  <th>Estimado</th>
+                  <th>Erro-Padrão</th>
+                  <th id="thIcInf">IC Inf (95%)</th>
+                  <th id="thIcSup">IC Sup (95%)</th>
+                  <th>CV (%)</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaParams"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <div class="chart-wrap">
+          <canvas id="grafico"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Config: limites e estatística -->
+    <div class="modal-overlay" id="modalConfig">
+      <div class="modal">
+        <h3>Configurações avançadas</h3>
+        <p class="subtitle" style="margin-bottom: 1rem;">Limites da otimização e parâmetros estatísticos.</p>
+        <div class="table-wrapper">
+          <table class="bounds-table">
+            <thead>
+              <tr>
+                <th>Parâmetro</th>
+                <th>Limite inferior</th>
+                <th>Limite superior</th>
+              </tr>
+            </thead>
+            <tbody id="boundsBody"></tbody>
+          </table>
+        </div>
+        <div class="form-row" style="margin-top: 1rem;">
+          <label for="confianca">Nível de confiança do IC (%)</label>
+          <input type="number" id="confianca" min="80" max="99.9" step="0.1" value="95">
+          <label for="eps_rel">eps_rel (Jacobiano)</label>
+          <input type="text" id="eps_rel" value="1e-4" title="Incremento relativo para derivadas numéricas">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btnConfigRestore">Restaurar padrões</button>
+          <button type="button" class="btn" id="btnConfigFechar">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
