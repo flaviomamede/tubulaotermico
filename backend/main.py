@@ -174,8 +174,9 @@ def run_otimizacao(tempos, temperaturas, chute=None, config=None):
         return calc_temperatura_centro(t_step1, p_full, T_ini=T_ini, a=a) - T_step1
 
     chute_step1 = np.clip(chute[:6], bounds_inf[:6], bounds_sup[:6])
+    print("\n[OTIMIZAÇÃO] Iniciando Passo 1 (Aquecimento)...")
     res1 = least_squares(residuals_step1, chute_step1, bounds=(bounds_inf[:6], bounds_sup[:6]),
-                         method="trf", x_scale="jac", diff_step=1e-6)
+                         method="trf", x_scale="jac", diff_step=1e-6, ftol=1e-5, xtol=1e-5, verbose=2)
     p_hill_opt = res1.x
 
     # ==========================================================
@@ -187,8 +188,9 @@ def run_otimizacao(tempos, temperaturas, chute=None, config=None):
     def residuals_step2(p_full):
         return calc_temperatura_centro(t_fit, p_full, T_ini=T_ini, a=a) - T_fit
 
+    print("\n[OTIMIZAÇÃO] Iniciando Passo 2 (Completo 9D)...")
     res2 = least_squares(residuals_step2, chute_step2, bounds=(bounds_inf, bounds_sup),
-                         method="trf", x_scale="jac", diff_step=1e-6)
+                         method="trf", x_scale="jac", diff_step=1e-6, ftol=1e-5, xtol=1e-5, verbose=2)
     p_opt = res2.x
     # Verificação cruzada: custo real vs custo reportado
     resid_check = calc_temperatura_centro(t_fit, p_opt, T_ini=T_ini, a=a) - T_fit
