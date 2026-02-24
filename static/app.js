@@ -1,9 +1,9 @@
 (function () {
   'use strict';
 
-  const API_OTIMIZAR_CLOUD = 'https://tubulaotermico.onrender.com/api/otimizar';
+  const API_OTIMIZAR_CLOUD = '';
   const API_OTIMIZAR = API_OTIMIZAR_CLOUD || (window.location.origin + '/api/otimizar');
-  const API_CURVA = 'https://tubulaotermico.onrender.com/api/curva';
+  const API_CURVA = (window.location.origin + '/api/curva');
 
   const NOMES_PARAMS = ['dT_adi1', 'dT_adi2', 'tau1', 'beta1', 'tau2', 'beta2', 'k_rel', 'alpha1', 'alpha2'];
   const DEFAULT_CHUTE = [45.0, 40.0, 10.0, 3.0, 25.0, 1.5, 2.9, 0.0040, 0.0030];
@@ -53,6 +53,11 @@
   let chartAnaliseInstance = null;
   let lastCurvaData = null;
 
+  function parseNum(val) {
+    if (typeof val !== 'string') val = String(val || '');
+    return parseFloat(val.replace(',', '.'));
+  }
+
   function buildChuteInputs() {
     el.chuteContainer.innerHTML = '';
     NOMES_PARAMS.forEach((nome, i) => {
@@ -78,7 +83,7 @@
     const params = [];
     for (let i = 0; i < 9; i++) {
       const input = el.paramsAnaliseContainer.querySelector(`[data-param-idx="${i}"]`);
-      params.push(input ? parseFloat(input.value) : NaN);
+      params.push(input ? parseNum(input.value) : NaN);
     }
     return params.length === 9 && params.every(n => !Number.isNaN(n)) ? params : null;
   }
@@ -97,12 +102,12 @@
   }
 
   function getConfig() {
-    const T_ini = parseFloat(el.T_ini.value);
-    const diametro = parseFloat(el.diametro.value);
-    const C_cim = parseFloat(el.C_cim && el.C_cim.value);
-    const confiancaPct = parseFloat(el.confianca.value);
+    const T_ini = parseNum(el.T_ini.value);
+    const diametro = parseNum(el.diametro.value);
+    const C_cim = parseNum(el.C_cim && el.C_cim.value);
+    const confiancaPct = parseNum(el.confianca.value);
     const confianca = confiancaPct / 100;
-    let eps_rel = parseFloat(el.eps_rel.value);
+    let eps_rel = parseNum(el.eps_rel.value);
     if (Number.isNaN(eps_rel)) eps_rel = 1e-4;
 
     const bounds_inf = [];
@@ -110,8 +115,8 @@
     el.boundsBody.querySelectorAll('tr').forEach((tr, i) => {
       const inf = tr.querySelector(`[data-bound-inf="${i}"]`);
       const sup = tr.querySelector(`[data-bound-sup="${i}"]`);
-      if (inf) bounds_inf.push(parseFloat(inf.value));
-      if (sup) bounds_sup.push(parseFloat(sup.value));
+      if (inf) bounds_inf.push(parseNum(inf.value));
+      if (sup) bounds_sup.push(parseNum(sup.value));
     });
 
     return {
@@ -130,7 +135,7 @@
     const chute = [];
     for (let i = 0; i < 9; i++) {
       const input = el.chuteContainer.querySelector(`[data-chute-idx="${i}"]`);
-      chute.push(input ? parseFloat(input.value) : NaN);
+      chute.push(input ? parseNum(input.value) : NaN);
     }
     return chute.length === 9 && chute.every(n => !Number.isNaN(n)) ? chute : undefined;
   }
@@ -306,10 +311,18 @@
         tempos,
       }),
     })
-      .then(r => r.json().then(data => {
-        if (!r.ok) throw new Error(data.error || 'Erro na API');
-        return data;
-      }))
+      .then(async r => {
+        const text = await r.text();
+        try {
+          const data = JSON.parse(text);
+          if (!r.ok) throw new Error(data.error || 'Erro na API');
+          return data;
+        } catch (e) {
+          console.error("Resposta do servidor:", text);
+          if (text.includes('504')) throw new Error('Tempo esgotado (Timeout). O servidor do Render é lento demais para este cálculo.');
+          throw new Error('Erro do Servidor (Não JSON). Verifique os logs do Render.');
+        }
+      })
       .then(showResultadosAnalise)
       .then(() => {
         el.statusAnalise.textContent = 'Pronto.';
@@ -385,12 +398,20 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-      .then(r => r.json().then(data => {
-        if (!r.ok) throw new Error(data.error || 'Erro na API');
-        data.t_dados = tempos;
-        data.T_dados = temperaturas;
-        return data;
-      }))
+      .then(async r => {
+        const text = await r.text();
+        try {
+          const data = JSON.parse(text);
+          if (!r.ok) throw new Error(data.error || 'Erro na API');
+          data.t_dados = tempos;
+          data.T_dados = temperaturas;
+          return data;
+        } catch (e) {
+          console.error("Resposta do servidor:", text);
+          if (text.includes('504')) throw new Error('Tempo esgotado (Timeout). Render é muito lento para essa regressão 9D.');
+          throw new Error('Erro do Servidor (Não JSON). Verifique os logs no painel do Render.');
+        }
+      })
       .then(showResultados)
       .then(() => {
         setStatus('Pronto.');
