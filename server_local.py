@@ -6,10 +6,12 @@ Uso: python server_local.py  →  http://localhost:5000
 import json
 import os
 from flask import Flask, request, send_from_directory
+from flask_cors import CORS
 
 from backend.main import run_otimizacao, run_curva
 
 app = Flask(__name__, static_folder="static", static_url_path="")
+CORS(app)
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 

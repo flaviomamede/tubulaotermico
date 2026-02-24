@@ -1,6 +1,7 @@
 """
 Backend App Web Tubulão Térmico - MVP 9 Parâmetros (2 Passos + k_rel)
 """
+import os
 import math
 import json
 import numpy as np
@@ -103,7 +104,7 @@ N_PARAMS = 9
 ALPHA_SCALE = 1e-4  # fator de conversão beta → alpha
 
 # #region agent log
-_DEBUG_LOG_PATH = "/home/flavio/Documentos/FEM/FLEXPDE/.cursor/debug.log"
+_DEBUG_LOG_PATH = os.environ.get("DEBUG_LOG_PATH", "debug.log")
 
 def _to_jsonable(x):
     if hasattr(x, "tolist"):
