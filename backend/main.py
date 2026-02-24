@@ -33,33 +33,38 @@ def get_stehfest_V(n=10):
 
 V_STEHFEST = get_stehfest_V(10)
 
-# Para Gauss-Laguerre (60 pontos) para integração rápida da Transformada de Laplace
-_NODES_GL, _WEIGHTS_GL = np.polynomial.laguerre.laggauss(60)
+# Para Gauss-Legendre (150 pontos) no intervalo [0, 1] para integração da Transformada de Laplace
+# Substituição u = e^(-st) => t = -ln(u)/s
+_NODES_GLeg, _WEIGHTS_GLeg = np.polynomial.legendre.leggauss(150)
+_NODES_U = 0.5 * (_NODES_GLeg + 1)
+_WEIGHTS_U = 0.5 * _WEIGHTS_GLeg
 
 def T_adi_hill(t, dT1, dT2, t1, b1, t2, b2):
-    """Elevação Adiabática de Temperatura (°C) - Versão Vetorizada"""
-    t_safe = np.where(t > 0, t, 1e-9)
-    term1 = dT1 * (t_safe**b1) / (t1**b1 + t_safe**b1)
-    term2 = dT2 * (t_safe**b2) / (t2**b2 + t_safe**b2)
-    return np.where(t > 0, term1 + term2, 0.0)
+    """Elevação Adiabática de Temperatura (°C) - Versão Vetorizada Estável"""
+    # Evita overflow t^b e trata t <= 0 usando forma 1/(1+(tau/t)^b)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        t_m = np.maximum(t, 1e-12)
+        res1 = dT1 / (1.0 + (t1 / t_m)**b1)
+        res2 = dT2 / (1.0 + (t2 / t_m)**b2)
+        res = res1 + res2
+    return np.where(t > 0, res, 0.0)
 
 def get_theta_bar_centro(s, params, a):
-    """Retorna a transformada de Laplace do ganho de temperatura no centro.
-    VETORIZADA sobre s."""
+    """Retorna a transformada de Laplace do ganho de temperatura no centro. VETORIZADA."""
     dT1, dT2, t1, b1, t2, b2, k_rel, beta_alpha1, beta_alpha2 = params
     alpha1 = beta_alpha1 * 1e-4
     alpha2 = beta_alpha2 * 1e-4
 
-    # Transformada de Laplace do calor adiabático via Gauss-Laguerre (Vetorizada sobre s)
-    # integral = sum( w_j * f(x_j/s) / s )
+    # Transformada de Laplace: (1/s) * integral de 0 a 1 de T(-ln(u)/s) du
     s_orig = s
     s_arr = np.atleast_1d(s)
     orig_shape = s_arr.shape
     s_flat = s_arr.flatten()
     
-    nodes_s = _NODES_GL.reshape(-1, 1) / s_flat.reshape(1, -1)
-    T_nodes = T_adi_hill(nodes_s, dT1, dT2, t1, b1, t2, b2) 
-    dT_adi_bar_flat = np.sum(_WEIGHTS_GL.reshape(-1, 1) * T_nodes / s_flat.reshape(1, -1), axis=0)
+    # Geramos t_nodes: (150, N_s)
+    t_nodes = -np.log(np.maximum(_NODES_U.reshape(-1, 1), 1e-15)) / s_flat.reshape(1, -1)
+    T_nodes = T_adi_hill(t_nodes, dT1, dT2, t1, b1, t2, b2) 
+    dT_adi_bar_flat = np.sum(_WEIGHTS_U.reshape(-1, 1) * T_nodes, axis=0) / s_flat
     dT_adi_bar_s = dT_adi_bar_flat.reshape(orig_shape)
 
     q1 = np.sqrt(s_orig / alpha1)
