@@ -33,66 +33,85 @@ def get_stehfest_V(n=10):
 
 V_STEHFEST = get_stehfest_V(10)
 
+# Para Gauss-Laguerre (60 pontos) para integração rápida da Transformada de Laplace
+_NODES_GL, _WEIGHTS_GL = np.polynomial.laguerre.laggauss(60)
+
 def T_adi_hill(t, dT1, dT2, t1, b1, t2, b2):
-    """Elevação Adiabática de Temperatura (°C)"""
-    if t <= 0: return 0.0
-    term1 = dT1 * (t**b1) / (t1**b1 + t**b1)
-    term2 = dT2 * (t**b2) / (t2**b2 + t**b2)
-    return term1 + term2
+    """Elevação Adiabática de Temperatura (°C) - Versão Vetorizada"""
+    t_safe = np.where(t > 0, t, 1e-9)
+    term1 = dT1 * (t_safe**b1) / (t1**b1 + t_safe**b1)
+    term2 = dT2 * (t_safe**b2) / (t2**b2 + t_safe**b2)
+    return np.where(t > 0, term1 + term2, 0.0)
 
 def get_theta_bar_centro(s, params, a):
     """Retorna a transformada de Laplace do ganho de temperatura no centro.
-    Params 7-8 (beta_alpha) estão em escala ×1e4; a física usa alpha = beta×1e-4."""
+    VETORIZADA sobre s."""
     dT1, dT2, t1, b1, t2, b2, k_rel, beta_alpha1, beta_alpha2 = params
     alpha1 = beta_alpha1 * 1e-4
     alpha2 = beta_alpha2 * 1e-4
 
-    # Transformada de Laplace do calor adiabático cumulativo
-    lim_sup = min(2000 / s, 1e5)
-    dT_adi_bar_s, _ = integrate.quad(
-        lambda t: T_adi_hill(t, dT1, dT2, t1, b1, t2, b2) * np.exp(-s * t),
-        0, lim_sup, limit=100
-    )
+    # Transformada de Laplace do calor adiabático via Gauss-Laguerre (Vetorizada sobre s)
+    # integral = sum( w_j * f(x_j/s) / s )
+    s_arr = np.atleast_1d(s)
+    nodes_s = _NODES_GL.reshape(-1, 1) / s_arr.reshape(1, -1)
+    T_nodes = T_adi_hill(nodes_s, dT1, dT2, t1, b1, t2, b2) 
+    dT_adi_bar_s = np.sum(_WEIGHTS_GL.reshape(-1, 1) * T_nodes / s_arr.reshape(1, -1), axis=0)
 
     q1 = np.sqrt(s / alpha1)
     q2 = np.sqrt(s / alpha2)
     ratio_I = ive(1, q1 * a) / ive(0, q1 * a)
     ratio_K = kve(0, q2 * a) / kve(1, q2 * a)
     
-    # k1*q1 / (k2*q2) simplificado
     flux_ratio = k_rel * np.sqrt(alpha2 / alpha1)
     D_scaled = 1 + flux_ratio * ratio_I * ratio_K
-    
     I0_a_scaled = ive(0, q1 * a)
-    if np.isinf(I0_a_scaled) or np.isnan(I0_a_scaled) or D_scaled == 0:
-        term_sub = 0
+    
+    # Proteção contra divisões por zero ou NaNs em s muito grandes/pequenos
+    mask_valid = (I0_a_scaled != 0) & (D_scaled != 0) & (~np.isinf(I0_a_scaled))
+    term_sub = np.zeros_like(s)
+    if isinstance(s, np.ndarray):
+        term_sub[mask_valid] = (1.0 / I0_a_scaled[mask_valid]) * np.exp(-q1[mask_valid] * a) / D_scaled[mask_valid]
     else:
-        term_sub = (1.0 / I0_a_scaled) * np.exp(-q1 * a) / D_scaled
+        if mask_valid:
+            term_sub = (1.0 / I0_a_scaled) * np.exp(-q1 * a) / D_scaled
         
     return dT_adi_bar_s * (1 - term_sub)
 
 def calc_temperatura_centro(tempos, params, T_ini=None, a=None):
     _T_ini = T_ini if T_ini is not None else DEFAULT_T_INI
     _a = a if a is not None else DEFAULT_A
-    res_T = np.zeros(len(tempos))
-    for j, t in enumerate(tempos):
-        if t <= 0:
-            res_T[j] = _T_ini
-            continue
-        ln2_t = np.log(2) / t
-        soma = sum(V_STEHFEST[i - 1] * get_theta_bar_centro(i * ln2_t, params, _a) for i in range(1, 11))
-        res_T[j] = _T_ini + soma * ln2_t
+    tempos = np.atleast_1d(tempos)
+    res_T = np.full(tempos.shape, _T_ini, dtype=float)
+    
+    mask = tempos > 0
+    t_val = tempos[mask]
+    if len(t_val) == 0: return res_T
+
+    ln2_t = np.log(2) / t_val
+    i_indices = np.arange(1, 11).reshape(10, 1)
+    S = i_indices * ln2_t.reshape(1, -1) # (10, N_t)
+    
+    theta_bar = get_theta_bar_centro(S, params, _a) # (10, N_t)
+    soma = np.sum(V_STEHFEST.reshape(10, 1) * theta_bar, axis=0)
+    res_T[mask] = _T_ini + soma * ln2_t
     return res_T
 
 def calc_derivada_centro(tempos, params, a=None):
-    """Calcula dT/dt exato usando v_bar(s) = s * theta_bar(s)"""
     _a = a if a is not None else DEFAULT_A
-    res_v = np.zeros(len(tempos))
-    for j, t in enumerate(tempos):
-        if t <= 0: continue
-        ln2_t = np.log(2) / t
-        soma = sum(V_STEHFEST[i - 1] * (i * ln2_t) * get_theta_bar_centro(i * ln2_t, params, _a) for i in range(1, 11))
-        res_v[j] = soma * ln2_t
+    tempos = np.atleast_1d(tempos)
+    res_v = np.zeros(tempos.shape, dtype=float)
+    
+    mask = tempos > 0
+    t_val = tempos[mask]
+    if len(t_val) == 0: return res_v
+
+    ln2_t = np.log(2) / t_val
+    i_indices = np.arange(1, 11).reshape(10, 1)
+    S = i_indices * ln2_t.reshape(1, -1)
+    
+    theta_bar = get_theta_bar_centro(S, params, _a)
+    soma = np.sum(V_STEHFEST.reshape(10, 1) * S * theta_bar, axis=0)
+    res_v[mask] = soma * ln2_t
     return res_v
 
 # 9 Parâmetros: dT_adi1, dT_adi2, tau1, beta1, tau2, beta2, k_rel, beta_alpha1, beta_alpha2
