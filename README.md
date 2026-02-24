@@ -34,7 +34,7 @@ tubulaotermico_appweb/
 
 2. Inicie o servidor:
    ```bash
-   python server_local.py
+   python app.py
    ```
 
 3. Abra no navegador: **http://localhost:5000**
