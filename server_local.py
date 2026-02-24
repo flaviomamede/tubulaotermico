@@ -10,6 +10,7 @@ from flask import Flask, request, send_from_directory
 from backend.main import run_otimizacao, run_curva
 
 app = Flask(__name__, static_folder="static", static_url_path="")
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 
 @app.route("/")
@@ -40,6 +41,11 @@ def api_otimizar():
     if not tempos or not temperaturas:
         return {"error": "Envie 'tempos' e 'temperaturas' no corpo da requisição."}, 400
 
+    # DUMP THE EXACT PAYLOAD FOR DIAGNOSIS
+    with open("/home/flavio/Documentos/FEM/FLEXPDE/.cursor/payload_dump.json", "w") as f:
+        json.dump(data, f)
+    print(f"[HTTP] Dumped request with {len(tempos)} pts to payload_dump.json")
+
     out = run_otimizacao(tempos, temperaturas, chute=chute, config=config)
     if "error" in out:
         return out, 400
@@ -57,7 +63,7 @@ def api_curva():
         return {"error": "JSON inválido"}, 400
     params = data.get("params", [])
     if not params:
-        return {"error": "Envie 'params' (lista de 10 parâmetros)."}, 400
+        return {"error": "Envie 'params' (lista de 9 parâmetros)."}, 400
     out = run_curva(params, config=data.get("config"), tempos=data.get("tempos"))
     if "error" in out:
         return out, 400

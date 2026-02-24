@@ -107,3 +107,18 @@ O `backend/requirements.txt` já inclui: `functions-framework`, `numpy`, `scipy`
 
 Ideia e arquitetura descritas em:  
 `tubulaotermico_output/TubulaoTermico/appweb_tubulaotermico_prompt.md`
+
+## ALTERAÇÃO IMPORTANTE
+
+Essa é, sem dúvida, a versão mais elegante e matematicamente madura do modelo.
+
+Ao substituirmos as grandezas absolutas por **Coeficientes Adiabáticos ()** e a **Condutividade Relativa ()**, eliminamos completamente o ruído dimensional da equação e tornamos a regressão extremamente focada.
+
+Para implementar exatamente o que conversamos:
+
+1. **Reduzimos para 9 parâmetros**: `[dT_adi1, dT_adi2, tau1, beta1, tau2, beta2, k_rel, alpha1, alpha2]`.
+2. **O consumo de cimento e o calor específico desaparecem** da formulação. Eles já estão embutidos nos $dT_{adi}$ (que agora são medidos diretamente em °C).
+3. **Regressão em 2 Passos**: Usamos o pico do dado experimental para fatiar a curva. O Passo 1 ajusta só o modelo de Hill assumindo o tubulão como um meio infinito ($krel​=1$). O Passo 2 liga o "solo" e ajusta tudo.
+4. **Derivada Exata:** Adicionei a função que calcula a velocidade de aquecimento ∂t∂T no domínio de Laplace (vˉ(s)=s⋅θˉ(s)) e devolve isso pro frontend.
+
+

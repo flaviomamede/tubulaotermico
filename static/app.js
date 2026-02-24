@@ -5,10 +5,10 @@
   const API_OTIMIZAR = API_OTIMIZAR_CLOUD || (window.location.origin + '/api/otimizar');
   const API_CURVA = window.location.origin + '/api/curva';
 
-  const NOMES_PARAMS = ['Qi1', 'Qi2', 'tau1', 'beta1', 'tau2', 'beta2', 'k1', 'alpha1', 'k2', 'alpha2'];
-  const DEFAULT_CHUTE = [113.16, 93.84, 15.0, 1.9, 250.0, 1.5, 9.36, 0.0045, 3.0, 0.002];
-  const DEFAULT_BOUNDS_INF = [50, 50, 1, 0.5, 10, 0.5, 2, 0.001, 0.5, 0.0005];
-  const DEFAULT_BOUNDS_SUP = [200, 200, 50, 5, 500, 5, 15, 0.015, 8, 0.01];
+  const NOMES_PARAMS = ['dT_adi1', 'dT_adi2', 'tau1', 'beta1', 'tau2', 'beta2', 'k_rel', 'alpha1', 'alpha2'];
+  const DEFAULT_CHUTE = [45.0, 40.0, 10.0, 3.0, 25.0, 1.5, 2.9, 0.0040, 0.0030];
+  const DEFAULT_BOUNDS_INF = [5.0, 5.0, 1.0, 0.5, 1.0, 0.5, 0.5, 0.0005, 0.0003];
+  const DEFAULT_BOUNDS_SUP = [90.0, 90.0, 500.0, 10.0, 500.0, 10.0, 10.0, 0.0100, 0.0050];
 
   const el = {
     csv: document.getElementById('csv'),
@@ -76,11 +76,11 @@
 
   function getParamsAnalise() {
     const params = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 9; i++) {
       const input = el.paramsAnaliseContainer.querySelector(`[data-param-idx="${i}"]`);
       params.push(input ? parseFloat(input.value) : NaN);
     }
-    return params.length === 10 && params.every(n => !Number.isNaN(n)) ? params : null;
+    return params.length === 9 && params.every(n => !Number.isNaN(n)) ? params : null;
   }
 
   function buildBoundsRows() {
@@ -89,8 +89,8 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${nome}</td>
-        <td><input type="number" step="any" data-bound-inf="${i}" value="${DEFAULT_BOUNDS_INF[i]}"></td>
-        <td><input type="number" step="any" data-bound-sup="${i}" value="${DEFAULT_BOUNDS_SUP[i]}"></td>
+        <td><input type="number" step="any" data-bound-inf="${i}" value="${DEFAULT_BOUNDS_INF[i]}" autocomplete="off"></td>
+        <td><input type="number" step="any" data-bound-sup="${i}" value="${DEFAULT_BOUNDS_SUP[i]}" autocomplete="off"></td>
       `;
       el.boundsBody.appendChild(tr);
     });
@@ -120,19 +120,19 @@
       C_cim: Number.isNaN(C_cim) ? 300 : C_cim,
       confianca: Number.isNaN(confianca) ? 0.95 : confianca,
       eps_rel,
-      bounds_inf: bounds_inf.length === 10 ? bounds_inf : DEFAULT_BOUNDS_INF,
-      bounds_sup: bounds_sup.length === 10 ? bounds_sup : DEFAULT_BOUNDS_SUP,
+      bounds_inf: bounds_inf.length === 9 ? bounds_inf : DEFAULT_BOUNDS_INF,
+      bounds_sup: bounds_sup.length === 9 ? bounds_sup : DEFAULT_BOUNDS_SUP,
     };
   }
 
   function getChute() {
     if (!el.usarChute.checked) return undefined;
     const chute = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 9; i++) {
       const input = el.chuteContainer.querySelector(`[data-chute-idx="${i}"]`);
       chute.push(input ? parseFloat(input.value) : NaN);
     }
-    return chute.length === 10 && chute.every(n => !Number.isNaN(n)) ? chute : undefined;
+    return chute.length === 9 && chute.every(n => !Number.isNaN(n)) ? chute : undefined;
   }
 
   function setStatus(msg, isError) {
@@ -143,14 +143,27 @@
   function parseCSV(text) {
     const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) return null;
-    const reNum = /-?\d+[,.]?\d*([eE][-+]?\d+)?/g;
     const rows = [];
+
+    // Detecta o separador mais provável na primeira linha de dados válida
+    const headerLine = lines[0];
+    const dataLine = lines[1];
+    let sep = ',';
+    if (dataLine.includes(';')) sep = ';';
+    else if (dataLine.includes('\t')) sep = '\t';
+
     for (let i = 0; i < lines.length; i++) {
-      const nums = lines[i].match(reNum);
-      if (nums && nums.length >= 2) {
-        const t = parseFloat(nums[0].replace(',', '.'));
-        const T = parseFloat(nums[1].replace(',', '.'));
-        if (!isNaN(t) && !isNaN(T)) rows.push({ t, T });
+      const parts = lines[i].split(sep);
+      if (parts.length >= 2) {
+        // Remove aspas eventuais e troca vírgula por ponto para o parseFloat
+        const tStr = parts[0].replace(/['"]/g, '').replace(',', '.').trim();
+        const TStr = parts[1].replace(/['"]/g, '').replace(',', '.').trim();
+        const t = parseFloat(tStr);
+        const T = parseFloat(TStr);
+        // Só adiciona se for número válido (ignora cabeçalhos automaticamente)
+        if (!isNaN(t) && !isNaN(T)) {
+          rows.push({ t, T });
+        }
       }
     }
     return rows.length ? rows : null;
@@ -158,7 +171,7 @@
 
   function drawChart(res) {
     if (chartInstance) chartInstance.destroy();
-    
+
     const dadosT = res.t_dados;
     const dadosTemp = res.T_dados;
     const tPlot = res.t_plot;
@@ -219,7 +232,7 @@
         maintainAspectRatio: false,
         interaction: { intersect: false, mode: 'index' },
         plugins: {
-          legend: { 
+          legend: {
             position: 'top',
             labels: { filter: item => item.text !== 'IC 95% Superior' } // Esconde o teto da legenda
           },
@@ -269,7 +282,7 @@
   function runCurva() {
     const params = getParamsAnalise();
     if (!params) {
-      el.statusAnalise.textContent = 'Preencha os 10 parâmetros.';
+      el.statusAnalise.textContent = 'Preencha os 9 parâmetros.';
       el.statusAnalise.className = 'error';
       return;
     }
@@ -359,7 +372,7 @@
   }
 
   function runOtimizacao(tempos, temperaturas) {
-    setStatus('Calculando Jacobiano e otimizando (pode levar alguns segundos)...', false);
+    setStatus('Calculando (Jacobiano 9D)... Por favor aguarde, pode levar até 1 minuto.', false);
     el.btnCalcular.disabled = true;
 
     const config = getConfig();
