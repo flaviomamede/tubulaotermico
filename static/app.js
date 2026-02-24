@@ -1,9 +1,9 @@
 (function () {
   'use strict';
 
-  const API_OTIMIZAR_CLOUD = '';
+  const API_OTIMIZAR_CLOUD = 'https://tubulaotermico.onrender.com/api/otimizar';
   const API_OTIMIZAR = API_OTIMIZAR_CLOUD || (window.location.origin + '/api/otimizar');
-  const API_CURVA = window.location.origin + '/api/curva';
+  const API_CURVA = 'https://tubulaotermico.onrender.com/api/curva';
 
   const NOMES_PARAMS = ['dT_adi1', 'dT_adi2', 'tau1', 'beta1', 'tau2', 'beta2', 'k_rel', 'alpha1', 'alpha2'];
   const DEFAULT_CHUTE = [45.0, 40.0, 10.0, 3.0, 25.0, 1.5, 2.9, 0.0040, 0.0030];
