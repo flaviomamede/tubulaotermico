@@ -22,3 +22,4 @@ Thumbs.db
 # Logs e temporários
 *.log
 *.tmp
+gcp-key.json
