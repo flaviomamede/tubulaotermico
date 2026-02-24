@@ -14,9 +14,12 @@ app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
+import traceback
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Retorna erros do sistema como JSON para evitar erro de parse no frontend."""
+    traceback.print_exc()
     return {"error": str(e)}, 500
 
 

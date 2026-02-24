@@ -52,13 +52,18 @@ def get_theta_bar_centro(s, params, a):
 
     # Transformada de Laplace do calor adiabático via Gauss-Laguerre (Vetorizada sobre s)
     # integral = sum( w_j * f(x_j/s) / s )
+    s_orig = s
     s_arr = np.atleast_1d(s)
-    nodes_s = _NODES_GL.reshape(-1, 1) / s_arr.reshape(1, -1)
+    orig_shape = s_arr.shape
+    s_flat = s_arr.flatten()
+    
+    nodes_s = _NODES_GL.reshape(-1, 1) / s_flat.reshape(1, -1)
     T_nodes = T_adi_hill(nodes_s, dT1, dT2, t1, b1, t2, b2) 
-    dT_adi_bar_s = np.sum(_WEIGHTS_GL.reshape(-1, 1) * T_nodes / s_arr.reshape(1, -1), axis=0)
+    dT_adi_bar_flat = np.sum(_WEIGHTS_GL.reshape(-1, 1) * T_nodes / s_flat.reshape(1, -1), axis=0)
+    dT_adi_bar_s = dT_adi_bar_flat.reshape(orig_shape)
 
-    q1 = np.sqrt(s / alpha1)
-    q2 = np.sqrt(s / alpha2)
+    q1 = np.sqrt(s_orig / alpha1)
+    q2 = np.sqrt(s_orig / alpha2)
     ratio_I = ive(1, q1 * a) / ive(0, q1 * a)
     ratio_K = kve(0, q2 * a) / kve(1, q2 * a)
     
@@ -68,14 +73,15 @@ def get_theta_bar_centro(s, params, a):
     
     # Proteção contra divisões por zero ou NaNs em s muito grandes/pequenos
     mask_valid = (I0_a_scaled != 0) & (D_scaled != 0) & (~np.isinf(I0_a_scaled))
-    term_sub = np.zeros_like(s)
-    if isinstance(s, np.ndarray):
+    term_sub = np.zeros_like(s_orig)
+    if isinstance(s_orig, np.ndarray):
         term_sub[mask_valid] = (1.0 / I0_a_scaled[mask_valid]) * np.exp(-q1[mask_valid] * a) / D_scaled[mask_valid]
     else:
         if mask_valid:
             term_sub = (1.0 / I0_a_scaled) * np.exp(-q1 * a) / D_scaled
         
-    return dT_adi_bar_s * (1 - term_sub)
+    res = dT_adi_bar_s * (1 - term_sub)
+    return res if isinstance(s, np.ndarray) else res.item()
 
 def calc_temperatura_centro(tempos, params, T_ini=None, a=None):
     _T_ini = T_ini if T_ini is not None else DEFAULT_T_INI
