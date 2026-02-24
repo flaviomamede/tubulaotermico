@@ -208,7 +208,7 @@
             label: 'Banda de Confiança ' + (res.confianca != null ? (res.confianca * 100).toFixed(0) : '95') + '%',
             data: tPlot.map((t, i) => ({ x: t, y: ciLwr[i] })),
             borderColor: 'transparent',
-            backgroundColor: 'rgba(88, 166, 255, 0.2)',
+            backgroundColor: 'rgba(88, 166, 255, 0.4)',
             pointRadius: 0,
             fill: '-1',
             tension: 0.1

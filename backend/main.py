@@ -237,10 +237,12 @@ def run_otimizacao(tempos, temperaturas, chute=None, config=None):
                                   "res2_cost": res2.cost, "res2_optimality": res2.optimality,
                                   "res2_status": res2.status, "res2_message": res2.message})
 
-    # --- Estatística Assintótica usando Jacobiano do scipy ---
+    # --- Estatística Assintótica ---
+    conf_raw = float(cfg.get("confianca", 95))
+    confianca_nivel = conf_raw / 100.0 if conf_raw > 1.0 else conf_raw
     n_obs, p_par = len(t_fit), len(p_opt)
     df_resid = n_obs - p_par
-    t_crit = stats.t.ppf(1 - 0.05 / 2, df_resid)
+    t_crit = stats.t.ppf(1 - (1 - confianca_nivel) / 2, df_resid)
 
     # Jacobiano do scipy + residuais verificados (cross-check)
     Fdot = res2.jac
@@ -314,7 +316,8 @@ def run_otimizacao(tempos, temperaturas, chute=None, config=None):
         "v_plot": v_plot.tolist(),
         "CI_lwr": CI_lwr.tolist(),
         "CI_upr": CI_upr.tolist(),
-        "erro_mae": float(np.mean(np.abs(res2.fun)))
+        "erro_mae": float(np.mean(np.abs(res2.fun))),
+        "confianca": confianca_nivel
     }
 
 
