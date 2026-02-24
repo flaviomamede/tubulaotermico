@@ -54,8 +54,11 @@
   let lastCurvaData = null;
 
   function parseNum(val) {
-    if (typeof val !== 'string') val = String(val || '');
-    return parseFloat(val.replace(',', '.'));
+    if (val === undefined || val === null) return NaN;
+    if (typeof val !== 'string') val = String(val);
+    // Remove espaços e troca vírgula por ponto
+    const s = val.trim().replace(/\s/g, '').replace(',', '.');
+    return parseFloat(s);
   }
 
   function buildChuteInputs() {
@@ -63,7 +66,7 @@
     NOMES_PARAMS.forEach((nome, i) => {
       const div = document.createElement('div');
       div.className = 'chute-item';
-      div.innerHTML = `<label>${nome}</label><input type="number" step="any" data-chute-idx="${i}" value="${DEFAULT_CHUTE[i]}">`;
+      div.innerHTML = `<label>${nome}</label><input type="text" data-chute-idx="${i}" value="${DEFAULT_CHUTE[i]}">`;
       el.chuteContainer.appendChild(div);
     });
   }
@@ -74,7 +77,7 @@
     NOMES_PARAMS.forEach((nome, i) => {
       const div = document.createElement('div');
       div.className = 'chute-item';
-      div.innerHTML = `<label>${nome}</label><input type="number" step="any" data-param-idx="${i}" value="${DEFAULT_CHUTE[i]}">`;
+      div.innerHTML = `<label>${nome}</label><input type="text" data-param-idx="${i}" value="${DEFAULT_CHUTE[i]}">`;
       el.paramsAnaliseContainer.appendChild(div);
     });
   }
@@ -94,8 +97,8 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${nome}</td>
-        <td><input type="number" step="any" data-bound-inf="${i}" value="${DEFAULT_BOUNDS_INF[i]}" autocomplete="off"></td>
-        <td><input type="number" step="any" data-bound-sup="${i}" value="${DEFAULT_BOUNDS_SUP[i]}" autocomplete="off"></td>
+        <td><input type="text" data-bound-inf="${i}" value="${DEFAULT_BOUNDS_INF[i]}" autocomplete="off"></td>
+        <td><input type="text" data-bound-sup="${i}" value="${DEFAULT_BOUNDS_SUP[i]}" autocomplete="off"></td>
       `;
       el.boundsBody.appendChild(tr);
     });
@@ -163,8 +166,8 @@
         // Remove aspas eventuais e troca vírgula por ponto para o parseFloat
         const tStr = parts[0].replace(/['"]/g, '').replace(',', '.').trim();
         const TStr = parts[1].replace(/['"]/g, '').replace(',', '.').trim();
-        const t = parseFloat(tStr);
-        const T = parseFloat(TStr);
+        const t = parseNum(tStr);
+        const T = parseNum(TStr);
         // Só adiciona se for número válido (ignora cabeçalhos automaticamente)
         if (!isNaN(t) && !isNaN(T)) {
           rows.push({ t, T });
@@ -291,11 +294,11 @@
       el.statusAnalise.className = 'error';
       return;
     }
-    const T_ini = parseFloat(el.analise_T_ini && el.analise_T_ini.value) || 25;
-    const diametro = parseFloat(el.analise_diametro && el.analise_diametro.value) || 0.9;
-    const C_cim = parseFloat(el.analise_C_cim && el.analise_C_cim.value) || 300;
-    const tMin = parseFloat(el.t_min && el.t_min.value) || 0.1;
-    const tMax = parseFloat(el.t_max && el.t_max.value) || 100;
+    const T_ini = parseNum(el.analise_T_ini && el.analise_T_ini.value) || 25;
+    const diametro = parseNum(el.analise_diametro && el.analise_diametro.value) || 0.9;
+    const C_cim = parseNum(el.analise_C_cim && el.analise_C_cim.value) || 300;
+    const tMin = parseNum(el.t_min && el.t_min.value) || 0.1;
+    const tMax = parseNum(el.t_max && el.t_max.value) || 100;
     const n = Math.max(50, Math.min(2000, parseInt(el.n_pontos && el.n_pontos.value, 10) || 300));
     const tempos = [];
     for (let i = 0; i < n; i++) tempos.push(tMin + (tMax - tMin) * i / (n - 1));
