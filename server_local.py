@@ -41,11 +41,6 @@ def api_otimizar():
     if not tempos or not temperaturas:
         return {"error": "Envie 'tempos' e 'temperaturas' no corpo da requisição."}, 400
 
-    # DUMP THE EXACT PAYLOAD FOR DIAGNOSIS
-    with open("/home/flavio/Documentos/FEM/FLEXPDE/.cursor/payload_dump.json", "w") as f:
-        json.dump(data, f)
-    print(f"[HTTP] Dumped request with {len(tempos)} pts to payload_dump.json")
-
     out = run_otimizacao(tempos, temperaturas, chute=chute, config=config)
     if "error" in out:
         return out, 400
