@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const API_OTIMIZAR_CLOUD = '';
+  const API_OTIMIZAR_CLOUD = 'https://tubulao-905142017176.southamerica-east1.run.app';
   const API_OTIMIZAR = API_OTIMIZAR_CLOUD || (window.location.origin + '/api/otimizar');
   const API_CURVA = (window.location.origin + '/api/curva');
 
