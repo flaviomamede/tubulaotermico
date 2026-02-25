@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const API_OTIMIZAR_CLOUD = 'https://tubulao-mr3rkpnycq-rj.a.run.app';
+  const API_OTIMIZAR_CLOUD = 'https://tubulao-mr3rkpnycq-rj.a.run.app/api/otimizar';
   const API_OTIMIZAR = API_OTIMIZAR_CLOUD || (window.location.origin + '/api/otimizar');
   const API_CURVA = (window.location.origin + '/api/curva');
 
@@ -322,8 +322,8 @@
           return data;
         } catch (e) {
           console.error("Resposta do servidor:", text);
-          if (text.includes('504')) throw new Error('Tempo esgotado (Timeout). O servidor do Render é lento demais para este cálculo.');
-          throw new Error('Erro do Servidor (Não JSON). Verifique os logs do Render.');
+          if (text.includes('504')) throw new Error('Tempo esgotado (Timeout). O servidor está demorando muito para responder.');
+          throw new Error('Erro do Servidor (Não JSON). Verifique os logs do Google Cloud.');
         }
       })
       .then(showResultadosAnalise)
@@ -411,8 +411,8 @@
           return data;
         } catch (e) {
           console.error("Resposta do servidor:", text);
-          if (text.includes('504')) throw new Error('Tempo esgotado (Timeout). Render é muito lento para essa regressão 9D.');
-          throw new Error('Erro do Servidor (Não JSON). Verifique os logs no painel do Render.');
+          if (text.includes('504')) throw new Error('Tempo esgotado (Timeout). O servidor do Google Cloud demorou demais.');
+          throw new Error('Erro do Servidor (Não JSON). Verifique os logs no Google Cloud Console.');
         }
       })
       .then(showResultados)
