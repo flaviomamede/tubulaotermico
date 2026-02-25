@@ -1,0 +1,18 @@
+.git
+.gitignore
+.gcloudignore
+.cursor/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.db
+.sqlite3
+debug.log
+gunicorn.ctl
+benchmark_plot.png
+benchmark_stable.png
+gcp-key.json
+render.yaml
+# We need Dockerfile and requirements.txt!
